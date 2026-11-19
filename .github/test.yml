@@ -1,0 +1,48 @@
+name: System Check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build and start containers
+      run: docker compose up -d --build
+
+    - name: Wait for services to be ready
+      run: sleep 15
+
+    - name: Check Frontend (Nginx)
+      run: |
+        status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/)
+        if [ "$status_code" -ne 200 ]; then
+          echo "Ошибка: Фронтенд вернул код $status_code"
+          exit 1
+        fi
+        echo "Фронтенд работает отлично!"
+
+    - name: Check Backend API
+      run: |
+        # Делаем запрос к API. Если бэкенд живой, он не будет возвращать 502/504
+        status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/)
+        if [ "$status_code" -ne 200 ]; then
+          echo "Ошибка: Бэкенд вернул код $status_code"
+          exit 1
+        fi
+        echo "Бэкенд работает отлично!"
+
+    - name: Print Docker Logs (if failed)
+      if: failure()
+      run: docker compose logs
+
+    - name: Stop containers
+      if: always()
+      run: docker compose down

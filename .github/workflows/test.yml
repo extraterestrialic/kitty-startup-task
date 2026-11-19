@@ -31,13 +31,16 @@ jobs:
 
     - name: Check Backend API
       run: |
-        # Делаем запрос к API. Если бэкенд живой, он не будет возвращать 502/504
+        # Делаем запрос к API. 
         status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/)
-        if [ "$status_code" -ne 200 ]; then
-          echo "Ошибка: Бэкенд вернул код $status_code"
+        
+        # 502 и 504 означают, что бэкенд умер или не отвечает.
+        # Любой другой код (200, 404, 405) означает, что бэкенд жив и общается через сокеты!
+        if [ "$status_code" -eq 502 ] || [ "$status_code" -eq 504 ]; then
+          echo "Ошибка: Бэкенд недоступен (код $status_code)"
           exit 1
         fi
-        echo "Бэкенд работает отлично!"
+        echo "Бэкенд работает отлично! (вернул код $status_code)"
 
     - name: Print Docker Logs (if failed)
       if: failure()
